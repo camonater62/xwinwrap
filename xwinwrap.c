@@ -38,7 +38,7 @@ typedef enum
 } win_shape;
 
 struct window {
-    Window root, window, desktop;
+    Window root, window, desktop, child;
     Drawable drawable;
     Visual *visual;
     Colormap colourmap;
@@ -152,6 +152,7 @@ static void usage (void)
             -sh     - Shape of window (choose between rectangle, circle or triangle. Default is rectangle)\n \
             -ov     - Set override_redirect flag (For seamless desktop background integration in non-fullscreenmode)\n \
             -d      - Daemonize\n \
+            -fa     - Force the child window to attach (no need to provide it with WID)\n \
             -debug  - Enable debug messages\n");
 }
 
@@ -264,6 +265,49 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
     return win;
 }
 
+static Window find_child_window(pid_t pid) {
+    Atom type;
+    int format, i;
+    unsigned long nitems, bytes;
+    unsigned int n;
+    Window root = RootWindow(display, screen);
+    Window win = root;
+    Window troot, parent, *children;
+    unsigned char *buf = NULL;
+    pid_t currpid;
+    
+    XQueryTree(display, root, &troot, &parent, &children, &n);
+     for (i = 0; i < (int) n; i++) {
+        int success = XGetWindowProperty(display, children[i], XInternAtom(display, "_NET_WM_PID", True), 0, 1,
+                               False, XA_CARDINAL, &type, &format, &nitems, &bytes, &buf);
+        if (buf == 0) {
+            continue;
+        }
+        currpid = *((pid_t*)buf);
+        if (success == Success && currpid == pid) {
+            win = children[i];
+            XFree(buf);
+            XFree(children);
+            if (debug)
+            {
+                fprintf(stderr,
+                        NAME": found child window (%lx)\n",
+                        win);
+            }
+            fflush(stderr);
+            return win;
+        }
+
+        if (buf) {
+            XFree(buf);
+            buf = 0;
+        }
+    }
+    XFree(children);
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     char        widArg[256];
@@ -287,6 +331,7 @@ int main(int argc, char **argv)
     bool skip_taskbar = false;
     bool skip_pager = false;
     bool daemonize = false;
+    bool force_attach = false;
 
     win_shape   shape = SHAPE_RECT;
     Pixmap      mask;
@@ -377,6 +422,10 @@ int main(int argc, char **argv)
         else if (strcmp (argv[i], "-d") == 0)
         {
             daemonize = true;
+        }
+        else if (strcmp (argv[i], "-fa") == 0)
+        {
+            force_attach = true;
         }
         else if (strcmp (argv[i], "--") == 0)
         {
@@ -692,11 +741,10 @@ int main(int argc, char **argv)
         XShapeCombineMask(display, window.window, ShapeBounding, 0, 0, mask, ShapeSet);
     }
 
-
-
-    XMapWindow(display, window.window);
-
-    XSync (display, window.window);
+    if (!force_attach) {
+        XMapWindow(display, window.window);
+        XSync (display, window.window);
+    }
 
     sprintf (widArg, "0x%x", (int) window.window);
 
@@ -720,6 +768,24 @@ int main(int argc, char **argv)
 
     for (;;)
     {
+        if (force_attach) {
+            for (i = 0; i<100; i++) {
+                usleep(100 * 1000);
+                window.child = find_child_window(pid);
+                if (window.child != 0) break;
+            }
+            if (window.child == 0) {
+                fprintf(stderr, "could not find any child window");
+                break;
+            }
+
+            XReparentWindow(display, window.child, window.window, 0, 0);
+            XResizeWindow(display, window.child, window.width, window.height);
+
+            XMapWindow(display, window.window);
+            XSync (display, window.window);
+        }
+
         if (waitpid (pid, &status, 0) != -1)
         {
             if (WIFEXITED (status))
