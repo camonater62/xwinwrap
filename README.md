@@ -45,9 +45,10 @@ Example
 
 ### Changes
 
-* Added ability to make undecorated window
-* Changed how desktop window is found
-* Refactored window hints
+* (ujjwal96) Added ability to make undecorated window
+* (ujjwal96) Changed how desktop window is found
+* (ujjwal96) Refactored window hints
+* (Azorlogh) Added the -fa flag to seek and attach the child window
 
 ----
 Original source - https://launchpad.net/xwinwrap
