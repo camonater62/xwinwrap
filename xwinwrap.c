@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -37,7 +38,8 @@ typedef enum
     SHAPE_TRIG,
 } win_shape;
 
-struct window {
+struct window
+{
     Window root, window, desktop;
     Drawable drawable;
     Visual *visual;
@@ -56,39 +58,53 @@ static pid_t pid = 0;
 static char **childArgv = 0;
 static int  childArgc = 0;
 
+static void die(const char *fmt, ...)
+{
+    va_list ap;
+    
+    fprintf(stderr, "Error: ");
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    
+    if (fmt[0] && fmt[strlen(fmt) - 1] == ':') {
+        fputc(' ', stderr);
+        perror(NULL);
+    } else {
+        fputc('\n', stderr);
+    }
 
-static void setWindowOpacity (unsigned int opacity)
+    exit(1);
+}
+
+static void set_window_opacity(unsigned int opacity)
 {
     CARD32 o;
-
     o = opacity;
-
-    XChangeProperty (display, window.window, ATOM(_NET_WM_WINDOW_OPACITY),
-                     XA_CARDINAL, 32, PropModeReplace,
-                     (unsigned char *) &o, 1);
+    XChangeProperty(display, window.window, ATOM(_NET_WM_WINDOW_OPACITY),
+                    XA_CARDINAL, 32, PropModeReplace,
+                    (unsigned char *) &o, 1);
 }
 
 static void init_x11()
 {
     display = XOpenDisplay (NULL);
     if (!display)
-    {
-        fprintf (stderr, NAME": Error: couldn't open display\n");
-        return;
-    }
+        die("Couldn't open display");
     screen = DefaultScreen(display);
     display_width = DisplayWidth(display, screen);
     display_height = DisplayHeight(display, screen);
 }
 
-static int get_argb_visual(Visual** visual, int *depth) {
+static int get_argb_visual(Visual** visual, int *depth)
+{
     XVisualInfo visual_template;
     XVisualInfo *visual_list;
     int nxvisuals = 0, i;
 
     visual_template.screen = screen;
-    visual_list = XGetVisualInfo (display, VisualScreenMask,
-                                  &visual_template, &nxvisuals);
+    visual_list = XGetVisualInfo(display, VisualScreenMask,
+                                 &visual_template, &nxvisuals);
     for (i = 0; i < nxvisuals; i++) {
         if (visual_list[i].depth == 32 &&
                 (visual_list[i].red_mask   == 0xff0000 &&
@@ -108,17 +124,16 @@ static int get_argb_visual(Visual** visual, int *depth) {
     return 0;
 }
 
-static void sigHandler (int sig)
+static void sig_handler(int sig)
 {
-    kill (pid, sig);
+    kill(pid, sig);
 }
 
-static void usage (void)
+static void usage()
 {
-    fprintf(stderr, "%s \n", NAME);
-    fprintf (stderr, "\nUsage: %s [-g {w}x{h}+{x}+{y}] [-ni] [-argb] [-fdt] [-fs] [-s] [-st] [-sp] [-a] [-d] "
-             "[-b] [-nf] [-o OPACITY] [-sh SHAPE] [-ov]-- COMMAND ARG1...\n", NAME);
-    fprintf (stderr, "Options:\n \
+    fprintf(stderr, "Usage: %s [-g {w}x{h}+{x}+{y}] [-ni] [-argb] [-fdt] [-fs] [-s] [-st] [-sp] [-a] [-d] "
+            "[-b] [-nf] [-o OPACITY] [-sh SHAPE] [-ov] -- COMMAND ARG1 ...\n", NAME);
+    fprintf(stderr, "Options:\n \
             -g      - Specify Geometry (w=width, h=height, x=x-coord, y=y-coord. ex: -g 640x480+100+100)\n \
             -ni     - Ignore Input\n \
             -argb   - RGB\n \
@@ -136,6 +151,7 @@ static void usage (void)
             -ov     - Set override_redirect flag (For seamless desktop background integration in non-fullscreenmode)\n \
             -d      - Daemonize\n \
             -debug  - Enable debug messages\n");
+    exit(1);
 }
 
 
@@ -199,8 +215,7 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
             win = *(Window *) buf;
             XFree(buf);
             XFree(children);
-            if (debug)
-            {
+            if (debug) {
                 fprintf(stderr,
                         NAME": desktop window (%lx) found from __SWM_VROOT property\n",
                         win);
@@ -249,7 +264,7 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
 
 int main(int argc, char **argv)
 {
-	char		widArg[255];
+    char        widArg[255];
     char        *endArg = NULL;
     int         status = 0;
     unsigned int opacity = OPAQUE;
@@ -280,119 +295,79 @@ int main(int argc, char **argv)
 
     for (i = 1; i < argc; i++)
     {
-        if (strcmp (argv[i], "-g") == 0)
-        {
-            if (++i < argc)
-                XParseGeometry (argv[i], &window.x, &window.y, &window.width, &window.height);
-        }
-        else if (strcmp (argv[i], "-ni") == 0)
-        {
-            noInput = 1;
-        }
-        else if (strcmp (argv[i], "-argb") == 0)
-        {
-            argb = true;
-        }
-        else if (strcmp (argv[i], "-fdt") == 0)
-        {
-            set_desktop_type = true;
-        }
-        else if (strcmp (argv[i], "-fs") == 0)
-        {
-            fullscreen = 1;
-        }
-        else if (strcmp (argv[i], "-un") == 0)
-        {
-            undecorated = true;
-        }
-        else if (strcmp (argv[i], "-s") == 0)
-        {
-            sticky = true;
-        }
-        else if (strcmp (argv[i], "-st") == 0)
-        {
-            skip_taskbar = true;
-        }
-        else if (strcmp (argv[i], "-sp") == 0)
-        {
-            skip_pager = true;
-        }
-        else if (strcmp (argv[i], "-a") == 0)
-        {
+        if (strcmp(argv[i], "-a") == 0) {
             above = true;
-        }
-        else if (strcmp (argv[i], "-b") == 0)
-        {
+        } else if (strcmp(argv[i], "-b") == 0) {
             below = true;
-        }
-        else if (strcmp (argv[i], "-nf") == 0)
-        {
-            noFocus = 1;
-        }
-        else if (strcmp (argv[i], "-o") == 0)
-        {
+        } else if (strcmp(argv[i], "-d") == 0) {
+            daemonize = true;
+        } else if (strcmp(argv[i], "-g") == 0) {
+            if (++i < argc)
+                XParseGeometry(argv[i], &window.x, &window.y, &window.width, &window.height);
+            else
+                die("Missing argument for -b");
+        } else if (strcmp(argv[i], "-h") == 0) {
+            usage();
+        } else if (strcmp(argv[i], "-o") == 0) {
             if (++i < argc)
                 opacity = (unsigned int) (atof (argv[i]) * OPAQUE);
-        }
-        else if (strcmp (argv[i], "-sh") == 0)
-        {
-            if (++i < argc)
-            {
+            else
+                die("Missing argument for -o");
+        } else if (strcmp(argv[i], "-s") == 0) {
+            sticky = true;
+        } else if (strcmp(argv[i], "-ni") == 0) {
+            noInput = 1;
+        } else if (strcmp(argv[i], "-fs") == 0) {
+            fullscreen = 1;
+        } else if (strcmp(argv[i], "-un") == 0) {
+            undecorated = true;
+        } else if (strcmp(argv[i], "-st") == 0) {
+            skip_taskbar = true;
+        } else if (strcmp(argv[i], "-sp") == 0) {
+            skip_pager = true;
+        } else if (strcmp(argv[i], "-nf") == 0) {
+            noFocus = 1;
+        } else if (strcmp(argv[i], "-sh") == 0) {
+            if (++i < argc) {
                 if (strcasecmp(argv[i], "circle") == 0)
-                {
                     shape = SHAPE_CIRCLE;
-                }
                 else if (strcasecmp(argv[i], "triangle") == 0)
-                {
                     shape = SHAPE_TRIG;
-                }
+                else
+                    die("Invalid argument for -sh");
+            } else {
+                die("Missing argument for -sh");
             }
-        }
-        else if (strcmp (argv[i], "-ov") == 0)
-        {
+        } else if (strcmp(argv[i], "-ov") == 0) {
             override = true;
-        }
-        else if (strcmp (argv[i], "-debug") == 0)
-        {
+        } else if (strcmp(argv[i], "-fdt") == 0) {
+            set_desktop_type = true;
+        } else if (strcmp(argv[i], "-argb") == 0) {
+            argb = true;
+        } else if (strcmp(argv[i], "-debug") == 0) {
             debug = true;
-        }
-        else if (strcmp (argv[i], "-d") == 0)
-        {
-            daemonize = true;
-        }
-        else if (strcmp (argv[i], "--") == 0)
-        {
+        } else if (strcmp(argv[i], "--") == 0) {
             break;
-        }
-        else
-        {
-            usage ();
-            return 1;
+        } else {
+            die("Invalid argument. Use -h to get help.");
         }
     }
 
-    if (daemonize)
-    {
+    if (daemonize) {
         pid_t process_id = 0;
         pid_t sid = 0;
         process_id = fork();
         if (process_id < 0)
-        {
-            fprintf(stderr, "fork failed!\n");
-            exit(1);
-        }
+            die("fork failed:");
 
-        if (process_id > 0)
-        {
-            fprintf(stderr, "pid of child process %d \n", process_id);
+        if (process_id > 0) {
+            fprintf(stderr, "pid of child proces: %d \n", process_id);
             exit(0);
         }
         umask(0);
         sid = setsid();
         if (sid < 0)
-        {
-            exit(1);
-        }
+            die("setsid failed:");
 
         chdir("/");
         close(STDIN_FILENO);
@@ -400,59 +375,44 @@ int main(int argc, char **argv)
         close(STDERR_FILENO);
     }
     
-   	childArgv = malloc((argc - i + 1) * sizeof(char*));
-    for (i = i + 1; i < argc; i++)
-    {
-    	if (strstr (argv[i], "%WID") != NULL) {
-    		int l = strlen(argv[i]);
-    		strncpy(widArg, argv[i], l);
-    		widArg[l] = '\0';
-    		childArgv[childArgc] = widArg;
-    	} else {
-    		childArgv[childArgc] = argv[i];
-    	}
+    childArgv = malloc((argc - i + 1) * sizeof(char*));
+    for (i = i + 1; i < argc; i++) {
+        if (strstr (argv[i], "%WID") != NULL) {
+            int l = strlen(argv[i]);
+            strncpy(widArg, argv[i], l);
+            widArg[l] = '\0';
+            childArgv[childArgc] = widArg;
+        } else {
+            childArgv[childArgc] = argv[i];
+        }
 
-    	childArgc++;
+        childArgc++;
     }
 
     if (!childArgc)
-    {
-        fprintf (stderr, "%s: Error: No command specified\n", argv[0]);
-        usage ();
-
-        return 1;
-    }
+        die("No command specified. Use -h to get help.");
     
     childArgv[childArgc] = endArg;
-
     init_x11();
-    if (!display)
-        return 1;
 
-    if (fullscreen)
-    {
+    if (fullscreen) {
         window.x = 0;
         window.y = 0;
-        window.width  = DisplayWidth (display, screen);
-        window.height = DisplayHeight (display, screen);
+        window.width  = DisplayWidth(display, screen);
+        window.height = DisplayHeight(display, screen);
     }
     int depth = 0, flags = CWOverrideRedirect | CWBackingStore;
     Visual *visual = NULL;
 
-    if (!find_desktop_window(&window.root, &window.desktop)) {
-        fprintf (stderr, NAME": Error: couldn't find desktop window\n");
-        return 1;
-    }
+    if (!find_desktop_window(&window.root, &window.desktop))
+        die("Couldn't find desktop window");
 
-    if (argb && get_argb_visual(&visual, &depth))
-    {
+    if (argb && get_argb_visual(&visual, &depth)) {
         have_argb_visual = true;
         window.visual = visual;
         window.colourmap = XCreateColormap(display,
                                            DefaultRootWindow(display), window.visual, AllocNone);
-    }
-    else
-    {
+    } else {
         window.visual = DefaultVisual(display, screen);
         window.colourmap = DefaultColormap(display, screen);
         depth = CopyFromParent;
@@ -465,16 +425,12 @@ int main(int argc, char **argv)
          * No WM hints or button processing needed. */
         XSetWindowAttributes attrs = { ParentRelative, 0L, 0, 0L, 0, 0,
                                        Always, 0L, 0L, False, StructureNotifyMask | ExposureMask, 0L,
-                                       True, 0, 0
-                                     };
+                                       True, 0, 0 };
 
-        if (have_argb_visual)
-        {
+        if (have_argb_visual) {
             attrs.colormap = window.colourmap;
             flags |= CWBorderPixel | CWColormap;
-        }
-        else
-        {
+        } else {
             flags |= CWBackPixel;
         }
 
@@ -485,24 +441,18 @@ int main(int argc, char **argv)
 
         fprintf(stderr, NAME": window type - override\n");
         fflush(stderr);
-    }
-    else
-    {
+    } else {
         XSetWindowAttributes attrs = { ParentRelative, 0L, 0, 0L, 0, 0,
                                        Always, 0L, 0L, False, StructureNotifyMask | ExposureMask |
-                                       ButtonPressMask | ButtonReleaseMask, 0L, False, 0, 0
-                                     };
+                                       ButtonPressMask | ButtonReleaseMask, 0L, False, 0, 0 };
 
         XWMHints wmHint;
         Atom xa;
 
-        if (have_argb_visual)
-        {
+        if (have_argb_visual) {
             attrs.colormap = window.colourmap;
             flags |= CWBorderPixel | CWColormap;
-        }
-        else
-        {
+        } else {
             flags |= CWBackPixel;
         }
 
@@ -521,8 +471,7 @@ int main(int argc, char **argv)
         xa = ATOM(_NET_WM_WINDOW_TYPE);
 
         Atom prop;
-        if (set_desktop_type)
-        {
+        if (set_desktop_type) {
             prop = ATOM(_NET_WM_WINDOW_TYPE_DESKTOP);
         } else {
             prop = ATOM(_NET_WM_WINDOW_TYPE_NORMAL);
@@ -626,56 +575,51 @@ int main(int argc, char **argv)
     }
 
     if (opacity != OPAQUE)
-        setWindowOpacity (opacity);
+        set_window_opacity(opacity);
 
-    if (noInput)
-    {
+    if (noInput) {
         Region region;
 
-        region = XCreateRegion ();
-        if (region)
-        {
-            XShapeCombineRegion (display, window.window, ShapeInput, 0, 0, region, ShapeSet);
-            XDestroyRegion (region);
+        region = XCreateRegion();
+        if (region) {
+            XShapeCombineRegion(display, window.window, ShapeInput, 0, 0, region, ShapeSet);
+            XDestroyRegion(region);
         }
     }
 
-    if (shape)
-    {
+    if (shape) {
         mask = XCreatePixmap(display, window.window, window.width, window.height, 1);
         mask_gc = XCreateGC(display, mask, 0, &xgcv);
 
-        switch (shape)
-        {
+        switch (shape) {
         //Nothing special to be done if it's a rectangle
         case SHAPE_CIRCLE:
-            /* fill mask */
-            XSetForeground(display, mask_gc, 0);
-            XFillRectangle(display, mask, mask_gc, 0, 0, window.width, window.height);
-
-            XSetForeground(display, mask_gc, 1);
-            XFillArc(display, mask, mask_gc, 0, 0, window.width, window.height, 0, 23040);
-            break;
-
+            {
+                /* fill mask */
+                XSetForeground(display, mask_gc, 0);
+                XFillRectangle(display, mask, mask_gc, 0, 0, window.width, window.height);
+    
+                XSetForeground(display, mask_gc, 1);
+                XFillArc(display, mask, mask_gc, 0, 0, window.width, window.height, 0, 23040);
+                break;
+            }
         case SHAPE_TRIG:
-        {
-            XPoint points[3] = { {0, window.height},
-                {window.width / 2, 0},
-                {window.width, window.height}
-            };
-
-            XSetForeground(display, mask_gc, 0);
-            XFillRectangle(display, mask, mask_gc, 0, 0, window.width, window.height);
-
-            XSetForeground(display, mask_gc, 1);
-            XFillPolygon(display, mask, mask_gc, points, 3, Complex, CoordModeOrigin);
-        }
-
-        break;
-
+            {
+                XPoint points[3] = {
+                    {0, window.height},
+                    {window.width / 2, 0},
+                    {window.width, window.height}
+                };
+    
+                XSetForeground(display, mask_gc, 0);
+                XFillRectangle(display, mask, mask_gc, 0, 0, window.width, window.height);
+    
+                XSetForeground(display, mask_gc, 1);
+                XFillPolygon(display, mask, mask_gc, points, 3, Complex, CoordModeOrigin);
+                break;
+            }
         default:
             break;
-
         }
         /* combine */
         XShapeCombineMask(display, window.window, ShapeBounding, 0, 0, mask, ShapeSet);
@@ -685,45 +629,39 @@ int main(int argc, char **argv)
 
     XMapWindow(display, window.window);
 
-    XSync (display, window.window);
+    XSync(display, window.window);
 
-	char* m = strstr (widArg, "%WID");
-	if (m != NULL)
-		sprintf(m, "0x%x", (int) window.window); // try to overwrite %WID
+    char* m = strstr (widArg, "%WID");
+    if (m != NULL)
+        sprintf(m, "0x%x", (int) window.window);
 
-    pid = fork ();
+    pid = fork();
 
     switch (pid) {
     case -1:
-        perror ("fork");
-        return 1;
+        die("fork failed:");
     case 0:
-        execvp (childArgv[0], childArgv);
-        perror (childArgv[0]);
-        exit (2);
-        break;
-    default:
-        break;
+        execvp(childArgv[0], childArgv);
+        perror(childArgv[0]);
+        exit(2);
     }
 
-    signal (SIGTERM, sigHandler);
-    signal (SIGINT,  sigHandler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGINT,  sig_handler);
 
-    for (;;)
-    {
-        if (waitpid (pid, &status, 0) != -1)
-        {
+    for (;;) {
+        if (waitpid (pid, &status, 0) != -1) {
             if (WIFEXITED (status))
-                fprintf (stderr, "%s died, exit status %d\n", childArgv[0],
-                         WEXITSTATUS (status));
+                fprintf (stderr, "%s died, exit status %d\n",
+                        childArgv[0],
+                        WEXITSTATUS (status));
 
             break;
         }
     }
 
-    XDestroyWindow (display, window.window);
-    XCloseDisplay (display);
-
+    XDestroyWindow(display, window.window);
+    XCloseDisplay(display);
 
     return 0;
 }
