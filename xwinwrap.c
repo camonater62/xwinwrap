@@ -400,25 +400,19 @@ int main(int argc, char **argv)
         close(STDERR_FILENO);
     }
     
-   	childArgv = malloc(argc - i);
+   	childArgv = malloc((argc - i + 1) * sizeof(char*));
     for (i = i + 1; i < argc; i++)
     {
-    	int l = strlen (argv[i]);
-    	char *dup = NULL;
-    	
-    	if (strstr (argv[i], "%WID") == NULL)
-    		dup = malloc (l + 1);
-    	else
-    		dup = widArg;
-    	
-    	if (dup == NULL) {
-    		fprintf (stderr, "%s: Error: cannot allocate memory\n", argv[0]);
-    		return 1;
+    	if (strstr (argv[i], "%WID") != NULL) {
+    		int l = strlen(argv[i]);
+    		strncpy(widArg, argv[i], l);
+    		widArg[l] = '\0';
+    		childArgv[childArgc] = widArg;
+    	} else {
+    		childArgv[childArgc] = argv[i];
     	}
-    	
-    	strncpy (dup, argv[i], l);
-    	dup[l] = '\0';
-    	childArgv[childArgc++] = dup;
+
+    	childArgc++;
     }
 
     if (!childArgc)
