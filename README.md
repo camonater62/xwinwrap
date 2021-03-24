@@ -10,7 +10,7 @@ My use case - can use gif as a background
 
 ```
 sudo apt-get install xorg-dev build-essential libx11-dev x11proto-xext-dev libxrender-dev libxext-dev
-git clone https://github.com/ujjwal96/xwinwrap.git
+git clone https://github.com/takase1121/xwinwrap
 cd xwinwrap
 make
 sudo make install
@@ -48,6 +48,7 @@ Example
 * Added ability to make undecorated window
 * Changed how desktop window is found
 * Refactored window hints
+* Uses substitution instead of matching directly (allows `--wid=%WID` instead of `-wid WID`)
 
 ----
 Original source - https://launchpad.net/xwinwrap
