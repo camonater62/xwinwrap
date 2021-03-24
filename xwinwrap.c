@@ -54,25 +54,8 @@ bool debug = false;
 static pid_t pid = 0;
 
 static char **childArgv = 0;
-static int  nChildArgv  = 0;
+static int  childArgc = 0;
 
-static int addArguments (char **argv, int  n)
-{
-    char **newArgv;
-    int  i;
-
-    newArgv = realloc (childArgv, sizeof (char *) * (nChildArgv + n));
-    if (!newArgv)
-        return 0;
-
-    for (i = 0; i < n; i++)
-        newArgv[nChildArgv + i] = argv[i];
-
-    childArgv   = newArgv;
-    nChildArgv += n;
-
-    return n;
-}
 
 static void setWindowOpacity (unsigned int opacity)
 {
@@ -266,8 +249,7 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
 
 int main(int argc, char **argv)
 {
-    char        widArg[256];
-    char        *widArgv[] = { widArg };
+	char		widArg[255];
     char        *endArg = NULL;
     int         status = 0;
     unsigned int opacity = OPAQUE;
@@ -417,24 +399,37 @@ int main(int argc, char **argv)
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
     }
-
+    
+   	childArgv = malloc(argc - i);
     for (i = i + 1; i < argc; i++)
     {
-        if (strcmp (argv[i], "WID") == 0)
-            addArguments (widArgv, 1);
-        else
-            addArguments (&argv[i], 1);
+    	int l = strlen (argv[i]);
+    	char *dup = NULL;
+    	
+    	if (strstr (argv[i], "%WID") == NULL)
+    		dup = malloc (l + 1);
+    	else
+    		dup = widArg;
+    	
+    	if (dup == NULL) {
+    		fprintf (stderr, "%s: Error: cannot allocate memory\n", argv[0]);
+    		return 1;
+    	}
+    	
+    	strncpy (dup, argv[i], l);
+    	dup[l] = '\0';
+    	childArgv[childArgc++] = dup;
     }
 
-    if (!nChildArgv)
+    if (!childArgc)
     {
-        fprintf (stderr, "%s: Error: couldn't create command line\n", argv[0]);
+        fprintf (stderr, "%s: Error: No command specified\n", argv[0]);
         usage ();
 
         return 1;
     }
-
-    addArguments (&endArg, 1);
+    
+    childArgv[childArgc] = endArg;
 
     init_x11();
     if (!display)
@@ -698,7 +693,9 @@ int main(int argc, char **argv)
 
     XSync (display, window.window);
 
-    sprintf (widArg, "0x%x", (int) window.window);
+	char* m = strstr (widArg, "%WID");
+	if (m != NULL)
+		sprintf(m, "0x%x", (int) window.window); // try to overwrite %WID
 
     pid = fork ();
 
