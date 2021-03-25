@@ -424,7 +424,7 @@ int main(int argc, char **argv)
     for (i = i + 1; i < argc; i++) {
         if (strstr (argv[i], wid_placeholder) != NULL) {
             int l = strlen(argv[i]);
-            strncpy(wid_arg, argv[i], l);
+            memcpy(wid_arg, argv[i], l);
             wid_arg[l] = '\0';
             child_argv[child_argc] = wid_arg;
         } else {
