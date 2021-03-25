@@ -71,6 +71,21 @@
 
 #define ATOM(a) XInternAtom(display, #a, False)
 
+#define SETFLAG(flag, var)              \
+    if (strcmp(argv[i], flag) == 0) {   \
+        var = true;                     \
+        continue;                       \
+    }
+
+#define SETARG(opt, var)                        \
+    if (strcmp(argv[i], opt) == 0) {            \
+        if (++i < argc)                         \
+            var = argv[i];                      \
+        else                                    \
+            die("Missing argument for " opt);   \
+        continue;                               \
+    }
+
 Display *display = NULL;
 int display_width;
 int display_height;
@@ -329,6 +344,7 @@ int main(int argc, char **argv)
     bool skip_taskbar = false;
     bool skip_pager = false;
     bool daemonize = false;
+    bool help = false;
 
     win_shape   shape = SHAPE_RECT;
     Pixmap      mask;
@@ -338,66 +354,46 @@ int main(int argc, char **argv)
     window.width = WIDTH;
     window.height = HEIGHT;
 
+    char *geom = NULL;
+    char *op = NULL;
+    char *sh = NULL;
     for (i = 1; i < argc; i++)
     {
-        if (strcmp(argv[i], "-a") == 0) {
-            above = true;
-        } else if (strcmp(argv[i], "-b") == 0) {
-            below = true;
-        } else if (strcmp(argv[i], "-d") == 0) {
-            daemonize = true;
-        } else if (strcmp(argv[i], "-g") == 0) {
-            if (++i < argc)
-                XParseGeometry(argv[i], &window.x, &window.y, &window.width, &window.height);
-            else
-                die("Missing argument for -b");
-        } else if (strcmp(argv[i], "-h") == 0) {
-            usage();
-        } else if (strcmp(argv[i], "-o") == 0) {
-            if (++i < argc)
-                opacity = (unsigned int) (atof (argv[i]) * OPAQUE);
-            else
-                die("Missing argument for -o");
-        } else if (strcmp(argv[i], "-s") == 0) {
-            sticky = true;
-        } else if (strcmp(argv[i], "-ni") == 0) {
-            noInput = 1;
-        } else if (strcmp(argv[i], "-fs") == 0) {
-            fullscreen = 1;
-        } else if (strcmp(argv[i], "-un") == 0) {
-            undecorated = true;
-        } else if (strcmp(argv[i], "-st") == 0) {
-            skip_taskbar = true;
-        } else if (strcmp(argv[i], "-sp") == 0) {
-            skip_pager = true;
-        } else if (strcmp(argv[i], "-nf") == 0) {
-            noFocus = 1;
-        } else if (strcmp(argv[i], "-sh") == 0) {
-            if (++i < argc) {
-                if (strcasecmp(argv[i], "circle") == 0)
-                    shape = SHAPE_CIRCLE;
-                else if (strcasecmp(argv[i], "triangle") == 0)
-                    shape = SHAPE_TRIG;
-                else
-                    die("Invalid argument for -sh");
-            } else {
-                die("Missing argument for -sh");
-            }
-        } else if (strcmp(argv[i], "-ov") == 0) {
-            override = true;
-        } else if (strcmp(argv[i], "-fdt") == 0) {
-            set_desktop_type = true;
-        } else if (strcmp(argv[i], "-argb") == 0) {
-            argb = true;
-        } else if (strcmp(argv[i], "-debug") == 0) {
-            debug = true;
-        } else if (strcmp(argv[i], "--") == 0) {
-            break;
-        } else {
-            die("Invalid argument. Use -h to get help.");
-        }
+        SETFLAG("-a", above);
+        SETFLAG("-b", below);
+        SETFLAG("-d", daemonize);
+        SETARG("-g", geom);
+        SETFLAG("-h", help);
+        SETARG("-o", op);
+        SETFLAG("-s", sticky);
+        SETFLAG("-ni", no_input);
+        SETFLAG("-fs", fullscreen);
+        SETFLAG("-un", undecorated);
+        SETFLAG("-st", skip_taskbar);
+        SETFLAG("-sp", skip_pager);
+        SETFLAG("-nf", no_focus);
+        SETARG("-sh", sh);
+        SETFLAG("-ov", override);
+        SETFLAG("-fdt", set_desktop_type);
+        SETFLAG("-argb", argb);
+        SETFLAG("-debug", debug);
+        
+        if (strcmp(argv[i], "--") == 0) break;
+        die("Invalid argument '%s'. use -h to get help.", argv[i]);
     }
-
+    
+    if (help) usage();
+    if (geom != NULL) XParseGeometry(geom, &window.x, &window.y, &window.width, &window.height);
+    if (op != NULL) opacity = (unsigned int) (atof(op) * OPAQUE);
+    if (sh != NULL) {
+        if (strcmp(sh, "circle") == 0)
+            shape = SHAPE_CIRCLE;
+        else if (strcmp(sh, "triangle") == 0)
+            shape = SHAPE_TRIG;
+        else
+            die("Invalid argument for -sh: '%s'", sh);
+    }
+    
     if (daemonize) {
         pid_t process_id = 0;
         pid_t sid = 0;
