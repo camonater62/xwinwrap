@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS= -g -Wall
+CFLAGS= -O2 -Wall
 INCLUDE = -L /usr/lib/x86_64-linux-gnu
 LIBS = -lX11 -lXext -lXrender
 
