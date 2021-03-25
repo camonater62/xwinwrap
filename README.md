@@ -50,7 +50,7 @@ Example
 * Changed how desktop window is found
 * Refactored window hints
 * Refactored code style
-* Uses substitution instead of matching directly (allows `--wid=%WID` instead of `-wid WID`)
+* Allows WID to be passed within an argument (allows `--wid=%WID` instead of `-wid WID`)
 
 > Check `xwinwrap.c` for detailed changelogs.
 
