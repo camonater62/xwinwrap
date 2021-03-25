@@ -152,7 +152,7 @@ static void init_x11()
 {
     display = XOpenDisplay (NULL);
     if (!display)
-        die("Couldn't open display");
+        die("Couldn't open display.");
     screen = DefaultScreen(display);
     display_width = DisplayWidth(display, screen);
     display_height = DisplayHeight(display, screen);
@@ -364,10 +364,8 @@ int main(int argc, char **argv)
     {
         SETFLAG("-a", above);
         SETFLAG("-b", below);
-        SETFLAG("-d", daemonize);
-        SETARG("-g", geom);
-        SETFLAG("-h", help);
-        SETARG("-o", op);
+        SETFLAG("-d", daemonize);        
+        SETFLAG("-h", help);        
         SETFLAG("-s", sticky);
         SETFLAG("-ni", no_input);
         SETFLAG("-fs", fullscreen);
@@ -375,12 +373,14 @@ int main(int argc, char **argv)
         SETFLAG("-st", skip_taskbar);
         SETFLAG("-sp", skip_pager);
         SETFLAG("-nf", no_focus);
-        SETARG("-sh", sh);
         SETFLAG("-ov", override);
         SETFLAG("-fdt", set_desktop_type);
-        SETARG("-sub", wid_placeholder);
         SETFLAG("-argb", argb);
         SETFLAG("-debug", debug);
+        SETARG("-g", geom);
+        SETARG("-o", op);
+        SETARG("-sh", sh);
+        SETARG("-sub", wid_placeholder);
         
         if (strcmp(argv[i], "--") == 0) break;
         die("Invalid argument '%s'. use -h to get help.", argv[i]);
@@ -450,7 +450,7 @@ int main(int argc, char **argv)
     Visual *visual = NULL;
 
     if (!find_desktop_window(&window.root, &window.desktop))
-        die("Couldn't find desktop window");
+        die("Couldn't find desktop window.");
 
     if (argb && get_argb_visual(&visual, &depth)) {
         have_argb_visual = true;
