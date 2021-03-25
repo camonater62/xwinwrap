@@ -117,8 +117,8 @@ bool debug = false;
 
 static pid_t pid = 0;
 
-static char **childArgv = 0;
-static int  childArgc = 0;
+static char **child_argv = NULL;
+static int  child_argc = 0;
 
 static void die(const char *fmt, ...)
 {
@@ -327,9 +327,8 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
 
 int main(int argc, char **argv)
 {
-    char        widArg[255];
-    char        *widSub = WID_PLACEHOLDER;
-    char        *endArg = NULL;
+    char        wid_arg[255];
+    char        *wid_placeholder = WID_PLACEHOLDER;
     int         status = 0;
     unsigned int opacity = OPAQUE;
 
@@ -379,7 +378,7 @@ int main(int argc, char **argv)
         SETARG("-sh", sh);
         SETFLAG("-ov", override);
         SETFLAG("-fdt", set_desktop_type);
-        SETARG("-sub", widSub);
+        SETARG("-sub", wid_placeholder);
         SETFLAG("-argb", argb);
         SETFLAG("-debug", debug);
         
@@ -421,24 +420,24 @@ int main(int argc, char **argv)
         close(STDERR_FILENO);
     }
     
-    childArgv = malloc((argc - i + 1) * sizeof(char*));
+    child_argv = malloc((argc - i + 1) * sizeof(char*));
     for (i = i + 1; i < argc; i++) {
-        if (strstr (argv[i], widSub) != NULL) {
+        if (strstr (argv[i], wid_placeholder) != NULL) {
             int l = strlen(argv[i]);
-            strncpy(widArg, argv[i], l);
-            widArg[l] = '\0';
-            childArgv[childArgc] = widArg;
+            strncpy(wid_arg, argv[i], l);
+            wid_arg[l] = '\0';
+            child_argv[child_argc] = wid_arg;
         } else {
-            childArgv[childArgc] = argv[i];
+            child_argv[child_argc] = argv[i];
         }
 
-        childArgc++;
+        child_argc++;
     }
 
-    if (!childArgc)
+    if (!child_argc)
         die("No command specified. Use -h to get help.");
     
-    childArgv[childArgc] = endArg;
+    child_argv[child_argc] = NULL;
     init_x11();
 
     if (fullscreen) {
@@ -677,7 +676,7 @@ int main(int argc, char **argv)
 
     XSync(display, window.window);
 
-    char* m = strstr (widArg, widSub);
+    char* m = strstr(wid_arg, wid_placeholder);
     if (m != NULL)
         sprintf(m, "0x%x", (int) window.window);
 
@@ -687,8 +686,8 @@ int main(int argc, char **argv)
     case -1:
         die("fork failed:");
     case 0:
-        execvp(childArgv[0], childArgv);
-        perror(childArgv[0]);
+        execvp(child_argv[0], child_argv);
+        perror(child_argv[0]);
         exit(2);
     }
 
@@ -699,7 +698,7 @@ int main(int argc, char **argv)
         if (waitpid (pid, &status, 0) != -1) {
             if (WIFEXITED (status))
                 fprintf (stderr, "%s died, exit status %d\n",
-                        childArgv[0],
+                        child_argv[0],
                         WEXITSTATUS (status));
 
             break;
