@@ -69,6 +69,8 @@
 
 #define NAME "xwinwrap"
 
+#define WID_PLACEHOLDER "%WID"
+
 #define ATOM(a) XInternAtom(display, #a, False)
 
 #define SETFLAG(flag, var)              \
@@ -198,6 +200,7 @@ static void usage()
             -ni     - Ignore Input\n \
             -argb   - RGB\n \
             -fdt    - force WID window a desktop type window\n \
+            -sub    - Set WID placeholder (default is %s)\n \
             -fs     - Full Screen\n \
             -un     - Undecorated\n \
             -s      - Sticky\n \
@@ -210,7 +213,7 @@ static void usage()
             -sh     - Shape of window (choose between rectangle, circle or triangle. Default is rectangle)\n \
             -ov     - Set override_redirect flag (For seamless desktop background integration in non-fullscreenmode)\n \
             -d      - Daemonize\n \
-            -debug  - Enable debug messages\n");
+            -debug  - Enable debug messages\n", WID_PLACEHOLDER);
     exit(1);
 }
 
@@ -325,6 +328,7 @@ static Window find_desktop_window(Window *p_root, Window *p_desktop)
 int main(int argc, char **argv)
 {
     char        widArg[255];
+    char        *widSub = WID_PLACEHOLDER;
     char        *endArg = NULL;
     int         status = 0;
     unsigned int opacity = OPAQUE;
@@ -375,6 +379,7 @@ int main(int argc, char **argv)
         SETARG("-sh", sh);
         SETFLAG("-ov", override);
         SETFLAG("-fdt", set_desktop_type);
+        SETARG("-sub", widSub);
         SETFLAG("-argb", argb);
         SETFLAG("-debug", debug);
         
@@ -418,7 +423,7 @@ int main(int argc, char **argv)
     
     childArgv = malloc((argc - i + 1) * sizeof(char*));
     for (i = i + 1; i < argc; i++) {
-        if (strstr (argv[i], "%WID") != NULL) {
+        if (strstr (argv[i], widSub) != NULL) {
             int l = strlen(argv[i]);
             strncpy(widArg, argv[i], l);
             widArg[l] = '\0';
@@ -672,7 +677,7 @@ int main(int argc, char **argv)
 
     XSync(display, window.window);
 
-    char* m = strstr (widArg, "%WID");
+    char* m = strstr (widArg, widSub);
     if (m != NULL)
         sprintf(m, "0x%x", (int) window.window);
 
