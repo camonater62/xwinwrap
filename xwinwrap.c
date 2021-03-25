@@ -22,6 +22,23 @@
  *
  * Author: David Reveman <davidr@novell.com>
  */
+ 
+/*
+ * Modified by: Takase
+ * Changelog:
+ * 1. Add ability to pass WID within an argument
+ * 2. Refactor arguments handling
+ * 3. Refactor code style
+ */
+
+/*
+ * Modified by: Ujjwal Verma
+ * Changelog:
+ * 1. Added daemon mode
+ * 2. Added ability to undecorate window
+ * 3. Refactored desktop window logic
+ * 4. Refactored window hints
+ */
 
 /*
  * Modified by: Shantanu Goel
