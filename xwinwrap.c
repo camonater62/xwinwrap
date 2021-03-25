@@ -331,11 +331,11 @@ int main(int argc, char **argv)
 
     int i;
     bool have_argb_visual = false;
-    bool noInput = false;
+    bool no_input = false;
     bool argb = false;
     bool set_desktop_type = false;
     bool fullscreen = false;
-    bool noFocus = false;
+    bool no_focus = false;
     bool override = false;
     bool undecorated = false;
     bool sticky = false;
@@ -503,7 +503,7 @@ int main(int argc, char **argv)
 
         wmHint.flags = InputHint | StateHint;
         // wmHint.input = undecorated ? False : True;
-        wmHint.input = !noFocus;
+        wmHint.input = !no_focus;
         wmHint.initial_state = NormalState;
 
         XSetWMProperties(display, window.window, NULL, NULL, argv,
@@ -618,7 +618,7 @@ int main(int argc, char **argv)
     if (opacity != OPAQUE)
         set_window_opacity(opacity);
 
-    if (noInput) {
+    if (no_input) {
         Region region;
 
         region = XCreateRegion();
