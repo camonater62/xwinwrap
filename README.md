@@ -41,18 +41,19 @@ Options:
              -d      - Daemonize
              -debug  - Enable debug messages
 ```
+
 Example
 `xwinwrap -g 400x400 -ni -s -nf -b -un -argb -sh circle -- gifview -w %WID mygif.gif -a`
 
 ### Changes
 
-* Added ability to make undecorated window
-* Changed how desktop window is found
-* Refactored window hints
-* Refactored code style
-* Allows WID to be passed within an argument (allows `--wid=%WID` instead of `-wid WID`)
+-   Added ability to make undecorated window
+-   Changed how desktop window is found
+-   Refactored window hints
+-   Refactored code style
+-   Allows WID to be passed within an argument (allows `--wid=%WID` instead of `-wid WID`)
+-   Added the -fa flag to seek and attach the child window
 
-> Check `xwinwrap.c` for detailed changelogs.
+---
 
-----
 Original source - https://launchpad.net/xwinwrap
