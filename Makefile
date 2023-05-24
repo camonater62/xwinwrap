@@ -6,7 +6,7 @@ LIBS = -lX11 -lXext -lXrender
 all:
 	${CC} xwinwrap.c ${CFLAGS} ${INCLUDE} ${LIBS} -o xwinwrap
 
-install:
+install: all
 	install xwinwrap '/usr/local/bin'
 
 uninstall:
