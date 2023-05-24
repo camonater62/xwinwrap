@@ -420,11 +420,11 @@ int main(int argc, char **argv) {
         SETFLAG("-fdt", set_desktop_type);
         SETFLAG("-argb", argb);
         SETFLAG("-debug", debug);
+        SETFLAG("-fa", force_attach);
         SETARG("-g", geom);
         SETARG("-o", op);
         SETARG("-sh", sh);
         SETARG("-sub", wid_placeholder);
-        SETARG("-fa", force_attach);
 
         if (strcmp(argv[i], "--") == 0)
             break;
